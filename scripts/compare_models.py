@@ -88,19 +88,20 @@ def export_comparison(record, xy, distance, output):
         group = [r for r in old if int(r["n"]) == n]
         e = next(r for r in group if r["method"] == "held_karp")
         hs = [r for r in group if r["method"] == "two_opt"]
+        exact_times = [float(r["runtime_seconds"]) for r in group
+                       if r["method"] == "held_karp"]
         b = min(hs, key=lambda r: int(r["distance"]))
         small.append(dict(
             n=n, exact_distance=int(e["distance"]),
             heuristic_best=int(b["distance"]),
             excess=int(b["distance"]) - int(e["distance"]),
             best_gap_percent=100 * (int(b["distance"]) / int(e["distance"]) - 1),
-            exact_mean_seconds=float(np.mean([float(r["runtime_seconds"])
-                                              for r in group if r["method"] == "held_karp"])),
+            exact_mean_seconds=float(np.mean(exact_times)),
             heuristic_total_seconds=sum(float(r["runtime_seconds"]) for r in hs)))
         if n == 10:
             ids = subsets["subset_node_ids"]["10"]
-            small_routes = [[ids.index(v) for v in saved[f"10_{r['method']}_{r['run']}"]]
-                            for r in [e, b]]
+            keys = [f"10_{r['method']}_{r['run']}" for r in [e, b]]
+            small_routes = [[ids.index(v) for v in saved[k]] for k in keys]
             draw_pair(xy[np.array(ids) - 1], small_routes,
                       [f"Held–Karp optimum: {e['distance']}",
                        f"Best NN + 2-opt: {b['distance']}"],
@@ -151,12 +152,14 @@ def main():
             numpy=np.__version__, pyscipopt=pyscipopt.__version__,
             source_sha256={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                            for p in sorted((ROOT / "scripts").glob("*.py"))},
-            dataset_sha256=hashlib.sha256((ROOT / "dataset/pcb442.tsp").read_bytes()).hexdigest(),
+            dataset_sha256=hashlib.sha256(
+                (ROOT / "dataset/pcb442.tsp").read_bytes()).hexdigest(),
             settings=dict(threads=1, randomseedshift=0, relative_gap=0,
                           feasibility_tolerance=1e-6, strong_dual_reductions=False,
                           time_limit_seconds=300, warm_start="seed-0 NN + 2-opt"),
-            timing="Serial; model build, warm start, solve and route extraction included",
-            verification="ILP agrees with Held–Karp on four independent cases; two triangles test passed")
+            timing="Serial; includes model, warm start, solve and extraction",
+            verification="ILP agrees with Held–Karp on four independent cases; "
+                         "two triangles test passed")
         path.write_text(json.dumps(record, indent=2) + "\n")
     export_comparison(record, xy, distance, output)
     print("Saved full-board and subset comparisons", flush=True)
