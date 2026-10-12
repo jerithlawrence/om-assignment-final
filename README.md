@@ -26,12 +26,14 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 python scripts/verify.py
 python scripts/main.py
+python scripts/compare_models.py
 ```
 
 `verify.py` checks rounding, route feasibility, exact results against brute
 force, and small 2-opt results. `main.py` runs the experiments and replaces the
-results and figures in `output/`. No separate solver or internet connection
-is needed after installing the dependencies.
+results and figures in `output/`. `compare_models.py` runs the full-board ILP
+comparison with a five-minute solver limit. The PySCIPOpt wheel includes SCIP;
+no internet connection is needed once dependencies are installed.
 
 ## Methods and experiments
 
@@ -39,6 +41,10 @@ is needed after installing the dependencies.
   It is tested on 8, 10, 12, 14, 16 and 18 locations, with three runs per size.
   Its time complexity is O(n²2ⁿ) and memory complexity is O(n2ⁿ), so the
   function limits inputs to 20 locations.
+- **Full-board exact model:** A binary ILP with SCIP adds constraints to
+  prevent disconnected cycles. It starts from the seed-0 heuristic route.
+  The saved status, lower bound and gap show whether optimality was proved;
+  a time-limited feasible route is not automatically optimal.
 - **Heuristic:** Nearest neighbour builds a route from a seeded random start.
   Best-improvement 2-opt then shortens it until no improving 2-opt move remains.
   Seeds 0–9 are tested on the same small subsets and on 50, 100, 200 and all
@@ -53,11 +59,11 @@ in `output/experiment_details.json`.
 
 ## Results
 
-All **118 tours were feasible**. On the 18-location subset, the exact optimum
+All **118 tours in the original size study were feasible**. On the 18-location subset, the exact optimum
 was **12,073**, with a mean Held–Karp runtime of **2.325445 seconds**. All ten
 heuristic runs matched that optimum.
 
-For the full 442-location dataset:
+For the full 442-location dataset in that study:
 
 | Measure | Result |
 | --- | --- |
@@ -67,23 +73,27 @@ For the full 442-location dataset:
 | Published optimum | 50,778 |
 | Best gap from the optimum | 2.8103% |
 
-The full-instance optimum is a published reference, not a result from this
-exact implementation. No optimality gap is reported for the 50-, 100- or
-200-location subsets. Timings were measured on macOS arm64 and vary by
-computer.
+The separate full-board comparison found an ILP route of **50,778**, matching
+the published optimum. SCIP reached its time limit with a lower bound of
+50,737 and a 0.0808% solver gap, so this run did not independently prove
+optimality. Total ILP runtime was 301.533 seconds; ten fresh heuristic runs
+took 2.514 seconds together, with the same best distance of 52,205. All 11
+routes were feasible. Complete paired routes, timings and solver evidence
+are saved in `output/full_comparison.json` and the comparison figures/tables.
+
+No optimum is claimed for the 50-, 100- or 200-location subsets. Timings were
+measured on macOS arm64 and vary by computer. Use
+`python scripts/compare_models.py --plots-only` to redraw saved comparisons.
 
 ## Project files
 
 - `scripts/`: exact method, heuristic, experiments and correctness checks.
 - `dataset/`: the original benchmark file.
 - `output/`: per-run results, summary tables, saved routes, experiment settings,
-  improvement history and five report figures.
+  improvement history and route-comparison figures.
 - `requirements.txt`: fixed dependency versions.
 - `members.txt` and `submission.txt`: student details and submission links.
-- `code_appendix.txt`: all four Python scripts in full.
-
-The DOCX and PDF reports are included in the local submission ZIP and excluded
-from Git.
+- `code_appendix.txt`: all six Python scripts in full.
 
 ## Limitations
 
@@ -98,3 +108,4 @@ comparison, so the findings should not be generalised to every board.
 - [Official TSPLIB optimum values](https://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/TSP-BEST.html)
 - [Held and Karp — dynamic programming](https://doi.org/10.1137/0110015)
 - [Croes — travelling salesman local search](https://doi.org/10.1287/opre.6.6.791)
+- [PySCIPOpt](https://pyscipopt.readthedocs.io/)
